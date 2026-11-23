@@ -76,7 +76,11 @@ begin
           'id', member.id,
           'name', member.name,
           'has_invite', access_code.member_id is not null,
-          'activated', access_code.bound_user_id is not null
+          'activated', exists (
+            select 1
+            from private.member_identity identity
+            where identity.member_id = member.id
+          )
         )
         order by member.name
       )

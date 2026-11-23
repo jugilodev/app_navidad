@@ -5,7 +5,7 @@ Aplicación web en español para organizar un amigo secreto familiar: sorteo inc
 ## Preparar Supabase
 
 1. Crea un proyecto en Supabase y habilita **Anonymous Sign-Ins** en Authentication → Providers → Anonymous.
-2. En SQL Editor, ejecuta las migraciones `supabase/migrations/202611230001_family_secret_santa.sql` y `supabase/migrations/202611230002_admin_invites.sql`, en ese orden.
+2. En SQL Editor, ejecuta las migraciones `supabase/migrations/202611230001_family_secret_santa.sql`, `supabase/migrations/202611230002_admin_invites.sql` y `supabase/migrations/202611230003_multi_device_access.sql`, en ese orden.
 3. Ejecuta `supabase/seed.sql` una sola vez. El resultado contiene el código privado inicial de Juanene, el único administrador. Guárdalo y abre la app con ese código para gestionar las demás invitaciones desde la pestaña **Invitaciones**. El seed ya configura estas exclusiones: Tata/Sebastian en ambos sentidos, Miguel no puede sacar a Juanene, Sofia ni Tomas, y Sofia/Federico no pueden sacarse entre sí. No vuelvas a ejecutar el seed: los códigos se generan una sola vez.
 4. Instala Supabase CLI, inicia sesión y enlaza el proyecto. Despliega las funciones:
 
@@ -23,7 +23,8 @@ Aplicación web en español para organizar un amigo secreto familiar: sorteo inc
 - Al abrir el enlace, cada persona queda identificada y solo ve su propio resultado del sorteo. El código viaja en el fragmento privado del enlace (`#codigo=...`) y se elimina de la barra de direcciones al abrirse.
 - Solo se guarda el hash del código. La página de administración puede crear o renovar enlaces, pero no muestra asignaciones. Renovar un enlace invalida el anterior y cierra el acceso vinculado a esa persona; su asignación secreta se conserva.
 - Juanene también participa y solo ve a quién le toca a él. El rol de administrador permite gestionar accesos, no leer los resultados de otras personas.
-- Cada enlace es privado y se vincula a la sesión anónima del navegador de la persona en su primer acceso. Si pierde el acceso o cambia de dispositivo, Juanene puede renovarlo; la nueva invitación invalida la sesión anterior, pero conserva la asignación.
+- El mismo código puede vincular sesiones anónimas en varios dispositivos de la misma persona. Cada dispositivo conserva su sesión. Si comparte el código con alguien más, esa persona también podrá entrar con esa identidad; los códigos deben mantenerse privados.
+- Si pierde el acceso o hay que revocar el código, Juanene puede renovarlo; la nueva invitación invalida las sesiones anteriores, pero conserva la asignación.
 
 ## Ejecutar localmente
 

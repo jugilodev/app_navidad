@@ -343,7 +343,7 @@ function App() {
               {!saving && <ChevronRight size={17} />}
             </button>
           </form>
-          <div className="privacy-note"><LockKeyhole size={14} /> Tu código solo se puede usar en un dispositivo.</div>
+          <div className="privacy-note"><LockKeyhole size={14} /> Puedes usar el mismo código en tus dispositivos. Mantenlo privado.</div>
           {error && <p className="message error-message">{error}</p>}
         </div>
         <p className="entry-footer">Hecho con cariño para compartir en familia <Heart size={13} fill="currentColor" /></p>
