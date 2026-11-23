@@ -1,0 +1,5 @@
+[functions.redeem]
+verify_jwt = true
+
+[functions.admin-invites]
+verify_jwt = true
