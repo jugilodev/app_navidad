@@ -1,5 +1,5 @@
 [functions.redeem]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-invites]
-verify_jwt = true
+verify_jwt = false

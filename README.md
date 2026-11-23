@@ -15,7 +15,7 @@ Aplicación web en español para organizar un amigo secreto familiar: sorteo inc
    supabase functions deploy admin-invites
    ```
 
-   Las funciones validan la sesión anónima y usan la clave de servicio solo en el servidor de Supabase. No añadas `SUPABASE_SERVICE_ROLE_KEY` al frontend ni a las variables `VITE_*`.
+   Las funciones validan la sesión anónima dentro de su código y usan la clave de servicio solo en el servidor de Supabase. Su configuración desactiva la verificación JWT del gateway para que la petición previa CORS (`OPTIONS`) pueda llegar a la función; cada petición real comprueba el JWT mediante `auth.getUser()`. No añadas `SUPABASE_SERVICE_ROLE_KEY` al frontend ni a las variables `VITE_*`.
 
 ## Invitaciones y anonimato
 
