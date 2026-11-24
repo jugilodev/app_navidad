@@ -40,14 +40,16 @@ type Question = {
 type DrawResult = {
   member_id: string
   member_name: string
-  recipient_id: string
-  recipient_name: string
+  recipient_id: string | null
+  recipient_name: string | null
+  participates_in_draw: boolean
   is_admin: boolean
 }
 type InviteStatus = { id: string; name: string; has_invite: boolean; activated: boolean }
 type WishDraft = { name: string; url: string; price: string; description: string }
 
 const emptyDraft: WishDraft = { name: '', url: '', price: '', description: '' }
+const ACCESS_CODE_STORAGE_KEY = 'navidad-family-access-code'
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado. Inténtalo de nuevo.'
@@ -65,6 +67,13 @@ async function backendErrorMessage(error: unknown) {
     }
   }
   return messageFrom(error)
+}
+
+function isUnauthorizedError(error: unknown) {
+  return error instanceof Error &&
+    'context' in error &&
+    error.context instanceof Response &&
+    error.context.status === 401
 }
 
 function App() {
@@ -116,10 +125,11 @@ function App() {
     const { data, error: invokeError } = await client.functions.invoke('redeem', {
       body: inviteCode ? { code: inviteCode } : {},
     })
-    if (invokeError) throw new Error(await backendErrorMessage(invokeError))
+    if (invokeError) throw invokeError
     const identity = (data as { member: DrawResult | null }).member
     setMember(identity)
     if (identity) {
+      if (inviteCode) window.localStorage.setItem(ACCESS_CODE_STORAGE_KEY, inviteCode)
       setCode('')
       await loadFamilyContent()
       if (identity.is_admin) await loadInviteStatus()
@@ -135,19 +145,33 @@ function App() {
       }
       try {
         const inviteCode = new URLSearchParams(window.location.hash.slice(1)).get('codigo')
+        const savedCode = window.localStorage.getItem(ACCESS_CODE_STORAGE_KEY)
+        const accessCode = inviteCode ?? savedCode ?? undefined
         if (inviteCode) {
-          setCode(inviteCode)
           window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
         }
         const { data, error: sessionError } = await client.auth.getSession()
-        if (sessionError) throw sessionError
-        if (!data.session) {
+        if (sessionError) {
+          if (!accessCode) throw sessionError
+          const { error: signOutError } = await client.auth.signOut({ scope: 'local' })
+          if (signOutError) throw signOutError
+        }
+        if (sessionError || !data.session) {
           const { error: signInError } = await client.auth.signInAnonymously()
           if (signInError) throw signInError
         }
-        await loadIdentity(inviteCode ?? undefined)
+        try {
+          await loadIdentity(accessCode)
+        } catch (identityError) {
+          if (!accessCode || !isUnauthorizedError(identityError)) throw identityError
+          const { error: signOutError } = await client.auth.signOut({ scope: 'local' })
+          if (signOutError) throw signOutError
+          const { error: signInError } = await client.auth.signInAnonymously()
+          if (signInError) throw signInError
+          await loadIdentity(accessCode)
+        }
       } catch (caught) {
-        if (active) setError(messageFrom(caught))
+        if (active) setError(await backendErrorMessage(caught))
       } finally {
         if (active) setLoading(false)
       }
@@ -167,6 +191,7 @@ function App() {
       })
       if (invokeError) throw new Error(await backendErrorMessage(invokeError))
       const identity = (data as { member: DrawResult }).member
+      window.localStorage.setItem(ACCESS_CODE_STORAGE_KEY, code.trim().toUpperCase())
       setMember(identity)
       setCode('')
       await loadFamilyContent()
@@ -343,7 +368,7 @@ function App() {
               {!saving && <ChevronRight size={17} />}
             </button>
           </form>
-          <div className="privacy-note"><LockKeyhole size={14} /> Puedes usar el mismo código en tus dispositivos. Mantenlo privado.</div>
+          <div className="privacy-note"><LockKeyhole size={14} /> El acceso se recuerda en este dispositivo. Usa el mismo código en tus otros dispositivos y mantenlo privado.</div>
           {error && <p className="message error-message">{error}</p>}
         </div>
         <p className="entry-footer">Hecho con cariño para compartir en familia <Heart size={13} fill="currentColor" /></p>
@@ -369,8 +394,10 @@ function App() {
           <div className="welcome-copy">
             <p className="eyebrow light-eyebrow"><Snowflake size={14} /> Diciembre sabe mejor juntos</p>
             <h1>Hola, {member.member_name}<span className="wave"> ✨</span></h1>
-            <p>Este año te toca llenar de alegría a <strong>{member.recipient_name}</strong>.</p>
-            <span className="gift-reveal"><Gift size={16} /> Tu amigo secreto</span>
+            {member.participates_in_draw
+              ? <p>Este año te toca llenar de alegría a <strong>{member.recipient_name}</strong>.</p>
+              : <p>Tu lista de deseos ayudará a la familia a elegir regalos especiales para ti.</p>}
+            <span className="gift-reveal"><Gift size={16} />{member.participates_in_draw ? 'Tu amigo secreto' : 'La estrella de Navidad'}</span>
           </div>
           <div className="banner-art" aria-hidden="true"><span className="banner-snow snow-one">✳</span><span className="banner-snow snow-two">✦</span><div className="present present-back"></div><div className="present present-front"><span></span></div><div className="banner-star">✧</div></div>
         </section>

@@ -1,12 +1,12 @@
-insert into public.family_members (name, is_admin) values
-  ('Tata', false),
-  ('Luisa', false),
-  ('Miguel', false),
-  ('Sofia', false),
-  ('Federico', false),
-  ('Sebastian', false),
-  ('Juanene', true),
-  ('Tomas', false);
+insert into public.family_members (name, is_admin, participates_in_draw) values
+  ('Tata', false, true),
+  ('Luisa', false, true),
+  ('Miguel', false, true),
+  ('Sofia', false, true),
+  ('Federico', false, true),
+  ('Sebastian', false, true),
+  ('Juanene', true, true),
+  ('Tomas', false, false);
 
 insert into private.blocked_pairs (giver_id, recipient_id)
 select giver.id, recipient.id
@@ -15,7 +15,6 @@ from (values
   ('Sebastian', 'Tata'),
   ('Miguel', 'Juanene'),
   ('Miguel', 'Sofia'),
-  ('Miguel', 'Tomas'),
   ('Sofia', 'Federico'),
   ('Federico', 'Sofia')
 ) as blocked(giver_name, recipient_name)
