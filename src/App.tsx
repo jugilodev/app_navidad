@@ -465,7 +465,7 @@ function App() {
             </div>
 
             <aside className="wish-sidebar">
-              {wishlistLocked && <div className="wishlist-opening-notice" role="status"><span className="opening-notice-icon"><CalendarDays size={18} /></span><div><strong>La lista abre el {WISHLIST_OPENS_LABEL}</strong><p>Hasta entonces podrás ver los deseos, pero no agregar ni modificar los tuyos.</p></div></div>}
+              {wishlistLocked && <div className="wishlist-opening-notice" role="status"><span className="opening-notice-icon"><CalendarDays size={18} /></span><div><strong>La lista finaliza el {WISHLIST_OPENS_LABEL}</strong><p>Hasta entonces podrás ver los deseos, pero no agregar ni modificar los tuyos.</p></div></div>}
               <form id="wishlist-form" className="panel wish-form" onSubmit={saveWish}>
                 <div className="panel-title"><span className="panel-icon"><Heart size={17} /></span><div><h3>{editingWishId ? 'Editar deseo' : 'Tu lista'}</h3><p>¿Qué te haría ilusión?</p></div></div>
                 <fieldset className="wish-fields" disabled={saving || wishlistLocked}>
