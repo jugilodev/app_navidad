@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
   ArrowUpRight,
+  CalendarDays,
   Check,
   ChevronRight,
   Copy,
@@ -50,6 +51,12 @@ type WishDraft = { name: string; url: string; price: string; description: string
 
 const emptyDraft: WishDraft = { name: '', url: '', price: '', description: '' }
 const ACCESS_CODE_STORAGE_KEY = 'navidad-family-access-code'
+const WISHLIST_OPENS_AT = new Date(2026, 10, 28)
+const WISHLIST_OPENS_LABEL = new Intl.DateTimeFormat('es-ES', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+}).format(WISHLIST_OPENS_AT)
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado. Inténtalo de nuevo.'
@@ -94,8 +101,18 @@ function App() {
   const [answeringQuestionId, setAnsweringQuestionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [wishlistLocked, setWishlistLocked] = useState(() => Date.now() < WISHLIST_OPENS_AT.getTime())
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    if (!wishlistLocked) return
+    const timer = window.setTimeout(
+      () => setWishlistLocked(false),
+      WISHLIST_OPENS_AT.getTime() - Date.now(),
+    )
+    return () => window.clearTimeout(timer)
+  }, [wishlistLocked])
 
   const loadFamilyContent = useCallback(async () => {
     if (!client) return
@@ -246,6 +263,10 @@ function App() {
   async function saveWish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!client || !member) return
+    if (Date.now() < WISHLIST_OPENS_AT.getTime()) {
+      setError(`Podrás agregar deseos a partir del ${WISHLIST_OPENS_LABEL}.`)
+      return
+    }
     setSaving(true)
     setError('')
     const payload = {
@@ -283,6 +304,10 @@ function App() {
   }
 
   async function removeWish(wishId: string) {
+    if (Date.now() < WISHLIST_OPENS_AT.getTime()) {
+      setError(`Podrás modificar tu lista a partir del ${WISHLIST_OPENS_LABEL}.`)
+      return
+    }
     if (!client || !window.confirm('¿Quieres quitar este deseo de tu lista?')) return
     setError('')
     const { error: deleteError } = await client.from('wishlists').delete().eq('id', wishId)
@@ -428,7 +453,7 @@ function App() {
                             <div className="wish-details"><h4>{wish.name}</h4>{wish.description && <p>{wish.description}</p>}{wish.approximate_price != null && <span className="price">Aprox. {Number(wish.approximate_price).toLocaleString('es-ES')}</span>}</div>
                             <div className="wish-actions">
                               {wish.url && <a className="icon-button" href={wish.url} target="_blank" rel="noreferrer" aria-label={`Ver enlace de ${wish.name}`}><ArrowUpRight size={17} /></a>}
-                              {person.id === member.member_id && <><button className="icon-button" onClick={() => editWish(wish)} aria-label={`Editar ${wish.name}`}><span className="edit-glyph">✎</span></button><button className="icon-button danger-hover" onClick={() => void removeWish(wish.id)} aria-label={`Eliminar ${wish.name}`}><Trash2 size={16} /></button></>}
+                              {person.id === member.member_id && <><button className="icon-button" disabled={wishlistLocked} onClick={() => editWish(wish)} aria-label={`Editar ${wish.name}`}><span className="edit-glyph">✎</span></button><button className="icon-button danger-hover" disabled={wishlistLocked} onClick={() => void removeWish(wish.id)} aria-label={`Eliminar ${wish.name}`}><Trash2 size={16} /></button></>}
                             </div>
                           </article>
                         ))}
@@ -440,18 +465,21 @@ function App() {
             </div>
 
             <aside className="wish-sidebar">
+              {wishlistLocked && <div className="wishlist-opening-notice" role="status"><span className="opening-notice-icon"><CalendarDays size={18} /></span><div><strong>La lista abre el {WISHLIST_OPENS_LABEL}</strong><p>Hasta entonces podrás ver los deseos, pero no agregar ni modificar los tuyos.</p></div></div>}
               <form id="wishlist-form" className="panel wish-form" onSubmit={saveWish}>
                 <div className="panel-title"><span className="panel-icon"><Heart size={17} /></span><div><h3>{editingWishId ? 'Editar deseo' : 'Tu lista'}</h3><p>¿Qué te haría ilusión?</p></div></div>
-                <label htmlFor="wish-name">Nombre del regalo</label>
-                <input id="wish-name" maxLength={120} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Un libro, una bufanda..." required />
-                <label htmlFor="wish-url">Enlace de compra <span>(opcional)</span></label>
-                <div className="input-with-icon"><LinkIcon size={15} /><input id="wish-url" type="url" value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} placeholder="https://" /></div>
-                <label htmlFor="wish-price">Precio aproximado <span>(opcional)</span></label>
-                <input id="wish-price" type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} placeholder="0.00" />
-                <label htmlFor="wish-description">Un detalle más <span>(opcional)</span></label>
-                <textarea id="wish-description" maxLength={2000} rows={3} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Color, talla, por qué te gusta..." />
-                <button className="button button-primary full-width" type="submit" disabled={saving}>{saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}{editingWishId ? 'Guardar cambios' : 'Añadir a mi lista'}</button>
-                {editingWishId && <button className="text-button centered" type="button" onClick={() => { setEditingWishId(null); setDraft(emptyDraft) }}>Cancelar edición</button>}
+                <fieldset className="wish-fields" disabled={saving || wishlistLocked}>
+                  <label htmlFor="wish-name">Nombre del regalo</label>
+                  <input id="wish-name" maxLength={120} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Un libro, una bufanda..." required />
+                  <label htmlFor="wish-url">Enlace de compra <span>(opcional)</span></label>
+                  <div className="input-with-icon"><LinkIcon size={15} /><input id="wish-url" type="url" value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} placeholder="https://" /></div>
+                  <label htmlFor="wish-price">Precio aproximado <span>(opcional)</span></label>
+                  <input id="wish-price" type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} placeholder="0.00" />
+                  <label htmlFor="wish-description">Un detalle más <span>(opcional)</span></label>
+                  <textarea id="wish-description" maxLength={2000} rows={3} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Color, talla, por qué te gusta..." />
+                  <button className="button button-primary full-width" type="submit" disabled={saving || wishlistLocked}>{saving ? <LoaderCircle className="spin" size={17} /> : wishlistLocked ? <LockKeyhole size={17} /> : <Plus size={17} />}{wishlistLocked ? `Disponible el ${WISHLIST_OPENS_LABEL}` : editingWishId ? 'Guardar cambios' : 'Añadir a mi lista'}</button>
+                  {editingWishId && <button className="text-button centered" type="button" onClick={() => { setEditingWishId(null); setDraft(emptyDraft) }}>Cancelar edición</button>}
+                </fieldset>
               </form>
               <div className="tip-card"><span>❄</span><p><strong>Un secreto entre nosotros</strong>Tu lista es visible para todos, pero solo tú puedes añadir o cambiar tus deseos.</p></div>
             </aside>
