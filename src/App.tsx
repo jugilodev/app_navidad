@@ -51,12 +51,12 @@ type WishDraft = { name: string; url: string; price: string; description: string
 
 const emptyDraft: WishDraft = { name: '', url: '', price: '', description: '' }
 const ACCESS_CODE_STORAGE_KEY = 'navidad-family-access-code'
-const WISHLIST_OPENS_AT = new Date(2026, 10, 28)
-const WISHLIST_OPENS_LABEL = new Intl.DateTimeFormat('es-ES', {
+const WISHLIST_CLOSES_AT = new Date(2026, 10, 28)
+const WISHLIST_CLOSES_LABEL = new Intl.DateTimeFormat('es-ES', {
   weekday: 'long',
   day: 'numeric',
   month: 'long',
-}).format(WISHLIST_OPENS_AT)
+}).format(WISHLIST_CLOSES_AT)
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado. Inténtalo de nuevo.'
@@ -101,15 +101,15 @@ function App() {
   const [answeringQuestionId, setAnsweringQuestionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [wishlistLocked, setWishlistLocked] = useState(() => Date.now() < WISHLIST_OPENS_AT.getTime())
+  const [wishlistLocked, setWishlistLocked] = useState(() => Date.now() >= WISHLIST_CLOSES_AT.getTime())
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    if (!wishlistLocked) return
+    if (wishlistLocked) return
     const timer = window.setTimeout(
-      () => setWishlistLocked(false),
-      WISHLIST_OPENS_AT.getTime() - Date.now(),
+      () => setWishlistLocked(true),
+      WISHLIST_CLOSES_AT.getTime() - Date.now(),
     )
     return () => window.clearTimeout(timer)
   }, [wishlistLocked])
@@ -263,8 +263,9 @@ function App() {
   async function saveWish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!client || !member) return
-    if (Date.now() < WISHLIST_OPENS_AT.getTime()) {
-      setError(`Podrás agregar deseos a partir del ${WISHLIST_OPENS_LABEL}.`)
+    if (Date.now() >= WISHLIST_CLOSES_AT.getTime()) {
+      setWishlistLocked(true)
+      setError(`La lista está cerrada desde el ${WISHLIST_CLOSES_LABEL}.`)
       return
     }
     setSaving(true)
@@ -304,8 +305,9 @@ function App() {
   }
 
   async function removeWish(wishId: string) {
-    if (Date.now() < WISHLIST_OPENS_AT.getTime()) {
-      setError(`Podrás modificar tu lista a partir del ${WISHLIST_OPENS_LABEL}.`)
+    if (Date.now() >= WISHLIST_CLOSES_AT.getTime()) {
+      setWishlistLocked(true)
+      setError(`La lista está cerrada desde el ${WISHLIST_CLOSES_LABEL}.`)
       return
     }
     if (!client || !window.confirm('¿Quieres quitar este deseo de tu lista?')) return
@@ -465,7 +467,7 @@ function App() {
             </div>
 
             <aside className="wish-sidebar">
-              {wishlistLocked && <div className="wishlist-opening-notice" role="status"><span className="opening-notice-icon"><CalendarDays size={18} /></span><div><strong>La lista finaliza el {WISHLIST_OPENS_LABEL}</strong><p>Hasta entonces podrás ver los deseos, pero no agregar ni modificar los tuyos.</p></div></div>}
+              <div className="wishlist-opening-notice" role="status"><span className="opening-notice-icon"><CalendarDays size={18} /></span><div><strong>{wishlistLocked ? 'La lista está cerrada' : `La lista está abierta hasta el ${WISHLIST_CLOSES_LABEL}`}</strong><p>{wishlistLocked ? 'Ya no se pueden agregar ni modificar deseos.' : `Puedes agregar y editar tus deseos hasta el ${WISHLIST_CLOSES_LABEL}.`}</p></div></div>
               <form id="wishlist-form" className="panel wish-form" onSubmit={saveWish}>
                 <div className="panel-title"><span className="panel-icon"><Heart size={17} /></span><div><h3>{editingWishId ? 'Editar deseo' : 'Tu lista'}</h3><p>¿Qué te haría ilusión?</p></div></div>
                 <fieldset className="wish-fields" disabled={saving || wishlistLocked}>
@@ -477,7 +479,7 @@ function App() {
                   <input id="wish-price" type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} placeholder="0.00" />
                   <label htmlFor="wish-description">Un detalle más <span>(opcional)</span></label>
                   <textarea id="wish-description" maxLength={2000} rows={3} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Color, talla, por qué te gusta..." />
-                  <button className="button button-primary full-width" type="submit" disabled={saving || wishlistLocked}>{saving ? <LoaderCircle className="spin" size={17} /> : wishlistLocked ? <LockKeyhole size={17} /> : <Plus size={17} />}{wishlistLocked ? `Disponible el ${WISHLIST_OPENS_LABEL}` : editingWishId ? 'Guardar cambios' : 'Añadir a mi lista'}</button>
+                  <button className="button button-primary full-width" type="submit" disabled={saving || wishlistLocked}>{saving ? <LoaderCircle className="spin" size={17} /> : wishlistLocked ? <LockKeyhole size={17} /> : <Plus size={17} />}{wishlistLocked ? 'Lista cerrada' : editingWishId ? 'Guardar cambios' : 'Añadir a mi lista'}</button>
                   {editingWishId && <button className="text-button centered" type="button" onClick={() => { setEditingWishId(null); setDraft(emptyDraft) }}>Cancelar edición</button>}
                 </fieldset>
               </form>
